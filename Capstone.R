@@ -1,6 +1,8 @@
 library(dplyr)
 library(ggplot2)
 library(tidyr)
+library(plm)
+library(lmtest)
 
 getwd() #Get working directory
 
@@ -15,7 +17,6 @@ colSums(is.na(trade_data)) #na values in each column
 nrow(trade_data) #number of observations
 
 summary(trade_data) #summary of data
-
 
 -----------------------------------------------------------------------------------------------------
 # Convert columns to numeric
@@ -33,7 +34,7 @@ trade_data <- trade_data %>%
 # Country income groups
 low_middle_income <- c("Bangladesh", "India", "Pakistan", "Phillipines")
 upper_middle_income <- c("Belgium", "Costa Rica", "Malaysia", "Thailand", "Indonesia", "Brazil", "Turkiye", "Mexico")
-high_income <- c("United States", "United Kingdom", "France", "Canada", "Australia", "Singapore", "Japan")
+high_income <- c( "United Kingdom", "France", "Canada", "Australia", "Singapore", "Japan")
 
 # Income group as a categorical variable
 trade_data <- trade_data %>%
@@ -47,157 +48,20 @@ trade_data <- trade_data %>%
 -----------------------------------------------------------------------------------------------------
 ##DATA CLEANING
 -----------------------------------------------------------------------------------------------------
+#Check outliers for Exchange Rate
+Q1_ExchangeRate <- quantile(trade_data$ExchangeRate, 0.25, na.rm = TRUE)
+Q3_ExchangeRate <- quantile(trade_data$ExchangeRate, 0.75, na.rm = TRUE)
+IQR_ExchangeRate <- Q3_ExchangeRate - Q1_ExchangeRate
 
-#Outliers
-  # Calculate IQR for Exchange Rate in each Income Group
-iqr_stats <- trade_data %>%
-  filter(Country.Name == "Bangladesh") %>%  # Filter for Indonesia
-  select(Country.Name, Time, Inflation) %>%
-  print()
+lower_exchangerate <- Q1_ExchangeRate - 1.5 * Q3_ExchangeRate
+upper_exchangerate <- Q1_ExchangeRate + 1.5 * Q3_ExchangeRate
 
+trade_data<- trade_data %>%
+  filter(ExchangeRate >= lower_exchangerate & ExchangeRate <= upper_exchangerate )
 
-iqr_stats <- trade_data %>%
-  filter(Country.Name == "India") %>%  # Filter for Indonesia
-  select(Country.Name, Time, Inflation) %>%
-  print()
-
-iqr_stats <- trade_data %>%
-  filter(Country.Name == "United States") %>%  # Filter for Indonesia
-  select(Country.Name, Time, Inflation) %>%
-  print()
-
-iqr_stats <- trade_data %>%
-  filter(Country.Name == "Thailand") %>%  # Filter for Indonesia
-  select(Country.Name, Time, Inflation) %>%
-  print()
-
-iqr_stats <- trade_data %>%
-  filter(Country.Name == "Bangladesh") %>%  # Filter for Indonesia
-  select(Country.Name, Time, Inflation) %>%
-  print()
+print(trade_data)
 
 
-iqr_stats <- trade_data %>%
-  filter(Country.Name == "Japan") %>%  # Filter for Indonesia
-  select(Country.Name, Time, Inflation) %>%
-  print()
-
-iqr_stats <- trade_data %>%
-  filter(Country.Name == "Japan") %>%  # Filter for Indonesia
-  select(Country.Name, Time, FDI_netoutflow) %>%
-  print()
-
-
-iqr_stats <- trade_data %>%
-  filter(Country.Name == "India") %>%  # Filter for Indonesia
-  select(Country.Name, Time, FDI_netoutflow) %>%
-  print()
-
-iqr_stats <- trade_data %>%
-  filter(Country.Name == "India") %>%  # Filter for Indonesia
-  select(Country.Name, Time, Imports) %>%
-  print()
-
-iqr_stats <- trade_data %>%
-  filter(Country.Name == "India") %>%  # Filter for Indonesia
-  select(Country.Name, Time, Exports) %>%
-  print()
-
-iqr_stats <- trade_data %>%
-  filter(Country.Name == "United States") %>%  # Filter for Indonesia
-  select(Country.Name, Time, Exports) %>%
-  print()
-
-iqr_stats <- trade_data %>%
-  filter(Country.Name == "Japan") %>%  # Filter for Indonesia
-  select(Country.Name, Time, Exports) %>%
-  print()
-
-#  summarise(
-#    Q1 = quantile(ExchangeRate, 0.25, na.rm = TRUE),
- #   Q3 = quantile(ExchangeRate, 0.75, na.rm = TRUE),
-  #  IQR = Q3 - Q1
- # )
-
-
-# Calculate IQR for Upper Middle Income
-iqr_stats <- trade_data %>%
-  filter(IncomeGroup == "Upper Middle Income") %>%
-  summarise(
-    Q1 = quantile(ExchangeRate, 0.25, na.rm = TRUE),
-    Q3 = quantile(ExchangeRate, 0.75, na.rm = TRUE),
-    IQR = Q3 - Q1
-  ) %>%
-  print()
-
-# Define upper and lower bounds
-upper_bound <- iqr_stats$Q3 + 1.5 * iqr_stats$IQR
-lower_bound <- iqr_stats$Q1 - 1.5 * iqr_stats$IQR
-
-print(upper_bound)
-print(lower_bound)
-
-# Check if Indonesia's 2023 exchange rate is an outlier
-is_outlier <- ifelse(15236.88 > upper_bound | 15236.88 < lower_bound, TRUE, FALSE)
-
-print(is_outlier)
-
-# Define upper and lower bounds for outliers
-trade_data <- trade_data %>%
-  left_join(iqr_stats, by = "IncomeGroup") %>%
-  mutate(
-    Outlier = ifelse(
-      ExchangeRate < (Q1 - 1.5 * IQR) | ExchangeRate > (Q3 + 1.5 * IQR),
-      TRUE, FALSE
-    )
-  )
-
-# Check how many outliers exist
-table(trade_data$Outlier)
-
-
-#Inflation
-# Filter data for the year 1974 and only middle-income groups
-middle_income_inflation_1974 <- trade_data %>%
-  filter(Time == 1974 & IncomeGroup %in% c( "Upper Middle Income")) %>%
-  select(Country.Name, Time, IncomeGroup, Inflation)
-
-# View the result
-print(middle_income_inflation_1974)
-
-# Filter data for the year 1974 and only high_income
-high_income_inflation_1974 <- trade_data %>%
-  filter(Time == 1974 & IncomeGroup %in% c("High Income")) %>%
-  select(Country.Name, Time, IncomeGroup, Inflation)
-
-# View the result
-print(high_income_inflation_1974)
-
-# Filter data for the year 1974 and only low_middle_income
-low_income_inflation_1974 <- trade_data %>%
-  filter(Time == 1974 & IncomeGroup %in% c("Lower Middle Income")) %>%
-  select(Country.Name, Time, IncomeGroup, Inflation)
-
-# View the result
-print(low_income_inflation_1974)
-
-
------------------------------------------------------------------------------------------------------
-# Filter data for the year 1974
-trade_1974 <- trade_data %>%
-  filter(Time == 1974, !is.na(Inflation))  # Remove missing inflation values
-
-# Create the box plot
-ggplot(trade_1974, aes(x = IncomeGroup, y = Inflation, fill = IncomeGroup)) +
-  geom_boxplot() +
-  labs(title = "Inflation Distribution by Income Group (1974)",
-       x = "Income Group",
-       y = "Inflation Rate (%)") +
-  theme_minimal() +
-  theme(legend.position = "none")  # Remove legend since x-axis already shows the groups
-
-
------------------------------------------------------------------------------------------------------
 # Function to detect outliers and impute missing values
 impute_inflation <- function(data, country, income_group) {
     
@@ -230,10 +94,20 @@ for (year in missing_years) {
     data <- data %>%
       mutate(Inflation = ifelse(Country.Name == country & Time == year & is.na(Inflation), 
                                   imputed_value, Inflation))
-    }
+  }
+  
+  # **Remove outliers from the entire dataset** before returning it
+  Q1_all <- quantile(data$Inflation, 0.25, na.rm = TRUE)
+  Q3_all <- quantile(data$Inflation, 0.75, na.rm = TRUE)
+  IQR_all <- Q3_all - Q1_all
     
-    # Return the modified dataset with removed outliers and imputations
-  return(data)
+  lower_bound_all <- Q1_all - 1.5 * IQR_all
+  upper_bound_all <- Q3_all + 1.5 * IQR_all
+    
+  cleaned_data <- data %>%
+    filter(Inflation >= lower_bound_all & Inflation <= upper_bound_all)
+    
+  return(cleaned_data)
 }
 
 # Apply function for Brazil and Bangladesh
@@ -246,17 +120,6 @@ trade_data %>%
   select(Country.Name, Time, IncomeGroup, Inflation) %>%
   print()
 
-brazil_inflation <- trade_data %>%
-  filter(Country.Name == "Brazil") %>%  # Filter for Indonesia
-  select(Country.Name, Time, Inflation) %>%
-  print()
-
-bangladesh_inflation <- trade_data %>%
-  filter(Country.Name == "Bangladesh") %>%  # Filter for Indonesia
-  select(Country.Name, Time, Inflation) %>%
-  print()
-View(trade_data)
-
 
 -----------------------------------------------------------------------------------------------------
 #FDI net-outflow
@@ -267,154 +130,6 @@ missing_netoutflow <- trade_data %>%
   select(Country.Name, Time, IncomeGroup, FDI_netoutflow) %>%
   print()
 
------------------------------------------------------------
-#Check net-outflow country-wise
-
-# Filter data for the country Indonesia
-indonesia_netoutflow <- trade_data %>%
-  filter(Country.Name == "Indonesia" & !is.na(FDI_netoutflow)) %>%
-  select(Country.Name, Time, IncomeGroup, FDI_netoutflow) %>%
-  print()
-
-# Line graph for Indonesia's net FDI outflow
-ggplot(indonesia_netoutflow, aes(x = Time, y = FDI_netoutflow)) +
-  geom_line(color = "blue", size = 1) +  # Line for trend
-  geom_point(color = "red", size = 2) +  # Points for individual data
-  labs(
-    title = "FDI Net Outflow Trend in Indonesia",
-    x = "Year",
-    y = "FDI Net Outflow (% of GDP)"
-  ) +
-  theme_minimal()
-
------------------------------------------------------------
-# Filter data for the country Mexico
-mexico_netoutflow <- trade_data %>%
-  filter(Country.Name == "Mexico" & !is.na(FDI_netoutflow)) %>%
-  select(Country.Name, Time, IncomeGroup, FDI_netoutflow) %>%
-  print()
-
-# Line graph for Mexico's net FDI outflow
-ggplot(mexico_netoutflow, aes(x = Time, y = FDI_netoutflow)) +
-  geom_line(color = "blue", size = 1) +  # Line for trend
-  geom_point(color = "red", size = 2) +  # Points for individual data
-  labs(
-    title = "FDI Net Outflow Trend in Mexico",
-    x = "Year",
-    y = "FDI Net Outflow (% of GDP)"
-  ) +
-  theme_minimal()
-
------------------------------------------------------------
-# Filter data for the country Costa Rica
-costarica_netoutflow <- trade_data %>%
-  filter(Country.Name == "Costa Rica" & !is.na(FDI_netoutflow)) %>%
-  select(Country.Name, Time, IncomeGroup, FDI_netoutflow) %>%
-  print()
-
-# Line graph for Costa Rica's net FDI outflow
-ggplot(costarica_netoutflow, aes(x = Time, y = FDI_netoutflow)) +
-  geom_line(color = "blue", size = 1) +  # Line for trend
-  geom_point(color = "red", size = 2) +  # Points for individual data
-  labs(
-    title = "FDI Net Outflow Trend in Costa Rica",
-    x = "Year",
-    y = "FDI Net Outflow (% of GDP)"
-  ) +
-  theme_minimal()
-
------------------------------------------------------------
-# Filter data for the country Phillipines
-phillipines_netoutflow <- trade_data %>%
-  filter(Country.Name == "Phillipines" & !is.na(FDI_netoutflow)) %>%
-  select(Country.Name, Time, IncomeGroup, FDI_netoutflow) %>%
-  print()
-
-# Line graph for Phillipines's net FDI inflow
-ggplot(phillipines_netoutflow, aes(x = Time, y = FDI_netoutflow)) +
-  geom_line(color = "blue", size = 1) +  # Line for trend
-  geom_point(color = "red", size = 2) +  # Points for individual data
-  labs(
-    title = "FDI Net Outflow Trend in Phillipines",
-    x = "Year",
-    y = "FDI Net Outflow (% of GDP)"
-  ) +
-  theme_minimal()
-
------------------------------------------------------------
-# Filter data for the country Bangladesh
-bangladesh_netoutflow <- trade_data %>%
-  filter(Country.Name == "Bangladesh" & !is.na(FDI_netoutflow)) %>%
-  select(Country.Name, Time, IncomeGroup, FDI_netoutflow) %>%
-  print()
-
-# Line graph for Bangladesh's net FDI inflow
-ggplot(phillipines_netoutflow, aes(x = Time, y = FDI_netoutflow)) +
-  geom_line(color = "blue", size = 1) +  # Line for trend
-  geom_point(color = "red", size = 2) +  # Points for individual data
-  labs(
-    title = "FDI Net Outflow Trend in Bangladesh",
-    x = "Year",
-    y = "FDI Net Outflow (% of GDP)"
-  ) +
-  theme_minimal()
-
------------------------------------------------------------
-# Filter data for the country Pakistan
-pakistan_netoutflow <- trade_data %>%
-  filter(Country.Name == "Pakistan" & !is.na(FDI_netoutflow)) %>%
-  select(Country.Name, Time, IncomeGroup, FDI_netoutflow) %>%
-  print()
-
-# Line graph for Pakistan's net FDI inflow
-ggplot(pakistan_netoutflow, aes(x = Time, y = FDI_netoutflow)) +
-  geom_line(color = "blue", size = 1) +  # Line for trend
-  geom_point(color = "red", size = 2) +  # Points for individual data
-  labs(
-    title = "FDI Net Outflow Trend in Pakistan",
-    x = "Year",
-    y = "FDI Net Outflow (% of GDP)"
-  ) +
-  theme_minimal()
-
------------------------------------------------------------
-# Filter data for the country Thailand
-thailand_netoutflow <- trade_data %>%
-  filter(Country.Name == "Thailand" & !is.na(FDI_netoutflow)) %>%
-  select(Country.Name, Time, IncomeGroup, FDI_netoutflow) %>%
-  print()
-
-# Line graph for Thailand's net FDI inflow
-ggplot(thailand_netoutflow, aes(x = Time, y = FDI_netoutflow)) +
-  geom_line(color = "blue", size = 1) +  # Line for trend
-  geom_point(color = "red", size = 2) +  # Points for individual data
-  labs(
-    title = "FDI Net Outflow Trend in Thailand",
-    x = "Year",
-    y = "FDI Net Outflow (% of GDP)"
-  ) +
-  theme_minimal()
-
-
------------------------------------------------------------
-# Filter data for the country India
-india_netoutflow <- trade_data %>%
-  filter(Country.Name == "India" & !is.na(FDI_netoutflow)) %>%
-  select(Country.Name, Time, IncomeGroup, FDI_netoutflow) %>%
-  print()
-
-# Line graph for India's net FDI inflow
-ggplot(india_netoutflow, aes(x = Time, y = FDI_netoutflow)) +
-  geom_line(color = "blue", size = 1) +  # Line for trend
-  geom_point(color = "red", size = 2) +  # Points for individual data
-  labs(
-    title = "FDI Net Outflow Trend in India",
-    x = "Year",
-    y = "FDI Net Outflow (% of GDP)"
-  ) +
-  theme_minimal()
-
------------------------------------------------------------
 #Function to detect outliers and impute missing values
 impute_fdi_outflow <- function(data, country, income_group, start_year = 1974, end_year = 1979) {
   
@@ -711,7 +426,282 @@ summary_stats <- trade_data %>%
 print(summary_stats)
 
 
+----------------------------------------------------------------------------
+#Coorelation
+# Function to compute correlation for each income group
+correlation_by_income <- trade_data %>%
+  group_by(IncomeGroup) %>%
+  summarise(
+    Cor_TradeBalance_ExchangeRate = cor(TradeBalance, ExchangeRate, use = "complete.obs"),
+    Cor_TradeBalance_Inflation = cor(TradeBalance, Inflation, use = "complete.obs"),
+    Cor_TradeBalance_FDI_Outflow = cor(TradeBalance, FDI_netinflow, use = "complete.obs"),
+    Cor_TradeBalance_FDI_Inflow = cor(TradeBalance, FDI_netoutflow, use = "complete.obs")
+  )
+
+# Print correlation results for each income group
+print(correlation_by_income)
+
+# Function to run panel regression by income group
+run_panel_regression <- function(income_group, data) {
   
+  # Filter data for the given income group
+  group_data <- data %>% filter(IncomeGroup == income_group)
+  
+  # Convert to panel data format
+  panel_data <- pdata.frame(group_data, index = c("Country.Name", "Time"))
+  
+  # Fixed Effects Model (FE)
+  fe_model <- plm(TradeBalance ~ ExchangeRate + Inflation + FDI_netoutflow + FDI_netinflow, 
+                  data = panel_data, model = "within")
+
+  
+  # Hausman Test to decide between FE and RE
+  hausman_test <- phtest(fe_model, re_model)
+  
+  # Print results
+  cat("\n==============================\n")
+  cat("Income Group:", income_group, "\n")
+  cat("==============================\n")
+  print(summary(fe_model))  # Fixed Effects model results
+  print(summary(re_model))  # Random Effects model results
+  print(hausman_test)  # Hausman test results
+}
+
+# Run regression for each Income Group
+unique_income_groups <- unique(trade_data$IncomeGroup)
+
+for (group in unique_income_groups) {
+  run_panel_regression(group, trade_data)
+}
+
+
+-----------------------------------------------------------------------------------------------
+#Extras
+  
+  #Outliers
+  
+  #Check outliers for Inflation
+  # **Remove outliers from the entire dataset** before returning it
+  Q1_inflation <- quantile(trade_data$Inflation, 0.25, na.rm = TRUE)
+Q3_inflation <- quantile(trade_data$Inflation, 0.75, na.rm = TRUE)
+IQR_inflation <- Q3_inflation - Q1_inflation
+
+lower_inflation <- Q1_inflation - 1.5 * IQR_inflation
+upper_inflation <- Q3_inflation + 1.5 * IQR_inflation
+
+cleaned_data <- trade_data %>%
+  filter(!is.na(Inflation) & Inflation >= lower_inflation & Inflation <= upper_inflation)
+
+print(cleaned_data)
+
+
+#Check outliers for Exchange Rate
+Q1_ExchangeRate <- quantile(cleaned_data$ExchangeRate, 0.25, na.rm = TRUE)
+Q3_ExchangeRate <- quantile(cleaned_data$ExchangeRate, 0.75, na.rm = TRUE)
+IQR_ExchangeRate <- Q3_ExchangeRate - Q1_ExchangeRate
+
+lower_exchangerate <- Q1_ExchangeRate - 1.5 * Q3_ExchangeRate
+upper_exchangerate <- Q1_ExchangeRate + 1.5 * Q3_ExchangeRate
+
+cleaned_data_exchangerate<- cleaned_data %>%
+  filter(!is.na(ExchangeRate) & Inflation >= lower_exchangerate & ExchangeRate <= upper_exchangerate ) %>%
+  select(Country.Name, Time, ExchangeRate)
+
+print(cleaned_data_exchangerate)
+
+
+#Inflation
+# Filter data for the year 1974 and only middle-income groups
+middle_income_inflation_1974 <- trade_data %>%
+  filter(Time == 1974 & IncomeGroup %in% c( "Upper Middle Income")) %>%
+  select(Country.Name, Time, IncomeGroup, Inflation)
+
+# View the result
+print(middle_income_inflation_1974)
+
+# Filter data for the year 1974 and only high_income
+high_income_inflation_1974 <- trade_data %>%
+  filter(Time == 1974 & IncomeGroup %in% c("High Income")) %>%
+  select(Country.Name, Time, IncomeGroup, Inflation)
+
+# View the result
+print(high_income_inflation_1974)
+
+# Filter data for the year 1974 and only low_middle_income
+low_income_inflation_1974 <- trade_data %>%
+  filter(Time == 1974 & IncomeGroup %in% c("Lower Middle Income")) %>%
+  select(Country.Name, Time, IncomeGroup, Inflation)
+
+# View the result
+print(low_income_inflation_1974)
+
+
+-----------------------------------------------------------------------------------------------------
+  # Filter data for the year 1974
+  trade_1974 <- trade_data %>%
+  filter(Time == 1974, !is.na(Inflation))  # Remove missing inflation values
+
+# Create the box plot
+ggplot(trade_1974, aes(x = IncomeGroup, y = Inflation, fill = IncomeGroup)) +
+  geom_boxplot() +
+  labs(title = "Inflation Distribution by Income Group (1974)",
+       x = "Income Group",
+       y = "Inflation Rate (%)") +
+  theme_minimal() +
+  theme(legend.position = "none")  # Remove legend since x-axis already shows the groups
+
+-----------------------------------------------------------
+  #Check net-outflow country-wise
+  
+  # Filter data for the country Indonesia
+  indonesia_netoutflow <- trade_data %>%
+  filter(Country.Name == "Indonesia" & !is.na(FDI_netoutflow)) %>%
+  select(Country.Name, Time, IncomeGroup, FDI_netoutflow) %>%
+  print()
+
+# Line graph for Indonesia's net FDI outflow
+ggplot(indonesia_netoutflow, aes(x = Time, y = FDI_netoutflow)) +
+  geom_line(color = "blue", size = 1) +  # Line for trend
+  geom_point(color = "red", size = 2) +  # Points for individual data
+  labs(
+    title = "FDI Net Outflow Trend in Indonesia",
+    x = "Year",
+    y = "FDI Net Outflow (% of GDP)"
+  ) +
+  theme_minimal()
+
+-----------------------------------------------------------
+  # Filter data for the country Mexico
+  mexico_netoutflow <- trade_data %>%
+  filter(Country.Name == "Mexico" & !is.na(FDI_netoutflow)) %>%
+  select(Country.Name, Time, IncomeGroup, FDI_netoutflow) %>%
+  print()
+
+# Line graph for Mexico's net FDI outflow
+ggplot(mexico_netoutflow, aes(x = Time, y = FDI_netoutflow)) +
+  geom_line(color = "blue", size = 1) +  # Line for trend
+  geom_point(color = "red", size = 2) +  # Points for individual data
+  labs(
+    title = "FDI Net Outflow Trend in Mexico",
+    x = "Year",
+    y = "FDI Net Outflow (% of GDP)"
+  ) +
+  theme_minimal()
+
+-----------------------------------------------------------
+  # Filter data for the country Costa Rica
+  costarica_netoutflow <- trade_data %>%
+  filter(Country.Name == "Costa Rica" & !is.na(FDI_netoutflow)) %>%
+  select(Country.Name, Time, IncomeGroup, FDI_netoutflow) %>%
+  print()
+
+# Line graph for Costa Rica's net FDI outflow
+ggplot(costarica_netoutflow, aes(x = Time, y = FDI_netoutflow)) +
+  geom_line(color = "blue", size = 1) +  # Line for trend
+  geom_point(color = "red", size = 2) +  # Points for individual data
+  labs(
+    title = "FDI Net Outflow Trend in Costa Rica",
+    x = "Year",
+    y = "FDI Net Outflow (% of GDP)"
+  ) +
+  theme_minimal()
+
+-----------------------------------------------------------
+  # Filter data for the country Phillipines
+  phillipines_netoutflow <- trade_data %>%
+  filter(Country.Name == "Phillipines" & !is.na(FDI_netoutflow)) %>%
+  select(Country.Name, Time, IncomeGroup, FDI_netoutflow) %>%
+  print()
+
+# Line graph for Phillipines's net FDI inflow
+ggplot(phillipines_netoutflow, aes(x = Time, y = FDI_netoutflow)) +
+  geom_line(color = "blue", size = 1) +  # Line for trend
+  geom_point(color = "red", size = 2) +  # Points for individual data
+  labs(
+    title = "FDI Net Outflow Trend in Phillipines",
+    x = "Year",
+    y = "FDI Net Outflow (% of GDP)"
+  ) +
+  theme_minimal()
+
+-----------------------------------------------------------
+  # Filter data for the country Bangladesh
+  bangladesh_netoutflow <- trade_data %>%
+  filter(Country.Name == "Bangladesh" & !is.na(FDI_netoutflow)) %>%
+  select(Country.Name, Time, IncomeGroup, FDI_netoutflow) %>%
+  print()
+
+# Line graph for Bangladesh's net FDI inflow
+ggplot(phillipines_netoutflow, aes(x = Time, y = FDI_netoutflow)) +
+  geom_line(color = "blue", size = 1) +  # Line for trend
+  geom_point(color = "red", size = 2) +  # Points for individual data
+  labs(
+    title = "FDI Net Outflow Trend in Bangladesh",
+    x = "Year",
+    y = "FDI Net Outflow (% of GDP)"
+  ) +
+  theme_minimal()
+
+-----------------------------------------------------------
+  # Filter data for the country Pakistan
+  pakistan_netoutflow <- trade_data %>%
+  filter(Country.Name == "Pakistan" & !is.na(FDI_netoutflow)) %>%
+  select(Country.Name, Time, IncomeGroup, FDI_netoutflow) %>%
+  print()
+
+# Line graph for Pakistan's net FDI inflow
+ggplot(pakistan_netoutflow, aes(x = Time, y = FDI_netoutflow)) +
+  geom_line(color = "blue", size = 1) +  # Line for trend
+  geom_point(color = "red", size = 2) +  # Points for individual data
+  labs(
+    title = "FDI Net Outflow Trend in Pakistan",
+    x = "Year",
+    y = "FDI Net Outflow (% of GDP)"
+  ) +
+  theme_minimal()
+
+-----------------------------------------------------------
+  # Filter data for the country Thailand
+  thailand_netoutflow <- trade_data %>%
+  filter(Country.Name == "Thailand" & !is.na(FDI_netoutflow)) %>%
+  select(Country.Name, Time, IncomeGroup, FDI_netoutflow) %>%
+  print()
+
+# Line graph for Thailand's net FDI inflow
+ggplot(thailand_netoutflow, aes(x = Time, y = FDI_netoutflow)) +
+  geom_line(color = "blue", size = 1) +  # Line for trend
+  geom_point(color = "red", size = 2) +  # Points for individual data
+  labs(
+    title = "FDI Net Outflow Trend in Thailand",
+    x = "Year",
+    y = "FDI Net Outflow (% of GDP)"
+  ) +
+  theme_minimal()
+
+
+-----------------------------------------------------------
+  # Filter data for the country India
+  india_netoutflow <- trade_data %>%
+  filter(Country.Name == "India" & !is.na(FDI_netoutflow)) %>%
+  select(Country.Name, Time, IncomeGroup, FDI_netoutflow) %>%
+  print()
+
+# Line graph for India's net FDI inflow
+ggplot(india_netoutflow, aes(x = Time, y = FDI_netoutflow)) +
+  geom_line(color = "blue", size = 1) +  # Line for trend
+  geom_point(color = "red", size = 2) +  # Points for individual data
+  labs(
+    title = "FDI Net Outflow Trend in India",
+    x = "Year",
+    y = "FDI Net Outflow (% of GDP)"
+  ) +
+  theme_minimal()
+
+-----------------------------------------------------------
+
+-----------------------------------------------------------------------------------------------------
+
+-----------------------------------------------------------------------------------------------------------------------
   
 
 
