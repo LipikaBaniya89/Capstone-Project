@@ -9,6 +9,7 @@ An analysis of the impact of exchange rates, inflation, and FDI on trade balance
 - **Variables used**</br>
   **Dependent**:
    - Trade Balance</br>
+   </br>
  **Independent**:</br>
     - Exchange Rate
     - FDI Net-inflow
