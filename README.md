@@ -7,7 +7,10 @@ An analysis of the impact of exchange rates, inflation, and FDI on trade balance
 - **Data source** : World Development Indicators - World Bank (https://databank.worldbank.org/source/world-development-indicators)
 - **Country selection criteria**: Selected from three income categories, which were already pre-categorized by the World Bank as lower-middle-income countries, upper-middle-income countries, and high-income countries
 - **Variables used**</br>
-  **Dependent**: Trade Balance</br>
+
+  **Dependent**:
+   - Trade Balance</br>
+   
   **Independent**:</br>
     - Exchange Rate
     - FDI Net-inflow
